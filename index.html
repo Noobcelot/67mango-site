@@ -51,7 +51,20 @@
             </td>
             <td align="right" valign="top" width="50%">
               <font face="Verdana, Arial, Helvetica" size="2">
-                <b>Last updated:</b> Oct 27, 2025
+                <b>Today's date: <span id="date"></span></b>
+                <script>
+                  
+                    // Create a new Date object with the current date/time
+                    const today = new Date();
+
+                    // Format it as a readable string
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    const formattedDate = today.toLocaleDateString(undefined, options);
+
+                    // Insert it into the span
+                    document.getElementById("date").textContent = formattedDate;
+                  
+                </script>
               </font>
             </td>
           </tr>
