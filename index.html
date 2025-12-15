@@ -56,14 +56,25 @@
                 <b>Yesterday's date: <span id="yesterday"></span></b>
                 
                 <script>
-                  var opts = { year: 'numeric', month: 'long', day: 'numeric' };
-                  
-                  document.getElementById("today").textContent =
-                    new Date().toLocaleDateString();
+                  var months = [
+                    "January","February","March","April","May","June",
+                    "July","August","September","October","November","December"
+                  ];
                 
-                  document.getElementById("yesterday").textContent =
-                    new Date(Date.now() - 864e5).toLocaleDateString();
+                  function formatDate(d) {
+                    return months[d.getMonth()] + " " +
+                           d.getDate() + ", " +
+                           d.getFullYear();
+                  }
+                
+                  var today = new Date();
+                  var yesterday = new Date(today);
+                  yesterday.setDate(today.getDate() - 1);
+                
+                  document.getElementById("today").textContent = formatDate(today);
+                  document.getElementById("yesterday").textContent = formatDate(yesterday);
                 </script>
+
                 
               </font>
             </td>
