@@ -51,25 +51,18 @@
             </td>
             <td align="right" valign="top" width="50%">
               <font face="Verdana, Arial, Helvetica" size="2">
-                <b>Today's date: <span id="date"></span></b>
-                <script>
-                  document.getElementById("date").textContent =
-                    new Date(Date.now() - 86400000).toLocaleDateString();
-                </script>
+
+                <b>Today's date: <span id="today"></span></b><br>
+                <b>Yesterday's date: <span id="yesterday"></span></b>
                 
                 <script>
-                  
-                    // Create a new Date object with the current date/time
-                    const today = new Date();
-
-                    // Format it as a readable string
-                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                    const formattedDate = today.toLocaleDateString(undefined, options);
-
-                    // Insert it into the span
-                    document.getElementById("date").textContent = formattedDate;
-                  
+                  document.getElementById("today").textContent =
+                    new Date().toLocaleDateString();
+                
+                  document.getElementById("yesterday").textContent =
+                    new Date(Date.now() - 864e5).toLocaleDateString();
                 </script>
+                
               </font>
             </td>
           </tr>
