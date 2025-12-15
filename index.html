@@ -53,6 +53,11 @@
               <font face="Verdana, Arial, Helvetica" size="2">
                 <b>Today's date: <span id="date"></span></b>
                 <script>
+                  document.getElementById("date").textContent =
+                    new Date(Date.now() - 86400000).toLocaleDateString();
+                </script>
+                
+                <script>
                   
                     // Create a new Date object with the current date/time
                     const today = new Date();
