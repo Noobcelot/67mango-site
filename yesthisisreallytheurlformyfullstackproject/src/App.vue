@@ -1,5 +1,5 @@
 <script setup>
-import GhostGame from './components/GhostGame.vue';
+import GhostGame from './src/components/GhostGame.vue';
 </script>
 
 <template>
