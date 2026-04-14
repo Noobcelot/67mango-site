@@ -20,7 +20,7 @@ const inputEl = ref(null);
 const thinkingDelay = ref(false);
 
 onMounted(async () => {
-  const res = await fetch('/words.txt');
+  const res = await fetch('./words.txt');
   const text = await res.text();
   const words = text.trim().split('\n').map(w => w.trim().toUpperCase()).filter(Boolean);
   trie.value = buildTrie(words);
