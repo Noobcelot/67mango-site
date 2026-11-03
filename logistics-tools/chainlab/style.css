@@ -199,3 +199,11 @@ footer .mango-badge {
   .intro { padding-top: 8px; }
   .metric { min-width: 0; }
 }
+
+.buffer-rules { padding: 10px 18px; border-bottom: 1px solid var(--line); }
+.buffer-rules summary { font-size: 13px; font-weight: bold; cursor: pointer; }
+.buffer-rules form, #buffer-confidence-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 10px; }
+.buffer-rules form { margin: 9px 0; }
+.buffer-rules label { display: grid; gap: 3px; font-size: 12px; }
+.buffer-rules input { width: 110px; padding: 5px; border: 1px solid #888; }
+.buffer-rules p { margin-bottom: 0; }

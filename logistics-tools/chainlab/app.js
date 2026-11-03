@@ -1,5 +1,6 @@
 import {analyze, analyzeSchedule, criticalSequences, days, initialSchedule, projectGraph, schedule} from './engine.js';
-import {renderBufferView} from './buffer-view.js';
+import {defaultBufferRules} from './buffers.js?v=buffer-rules';
+import {renderBufferView} from './buffer-view.js?v=buffer-rules';
 import {exampleProject} from './example.js';
 
 const $ = id => document.getElementById(id);
@@ -14,6 +15,7 @@ let graph, baseline, methodPlan, leveled, displayed, analysis, selected, worker,
 let visibleResults = 12;
 let bufferChoices = [];
 let bufferPlan;
+let bufferRules = defaultBufferRules;
 
 function readProject() {
   try {
@@ -201,7 +203,7 @@ function renderSchedule() {
 
 function drawBuffers() {
   const choice = bufferChoices[Number($('buffer-chain').value)];
-  $('buffer-body').innerHTML = renderBufferView(project, graph, leveled, choice.path);
+  $('buffer-body').innerHTML = renderBufferView(project, graph, leveled, choice.path, bufferRules);
 }
 
 function refreshBuffers() {
@@ -245,6 +247,40 @@ $('close-buffers').onclick = () => {
   $('open-buffers').focus();
 };
 $('buffer-chain').onchange = drawBuffers;
+
+const rulesForm = $('buffer-rules-form');
+function showSizingFields(method) {
+  const confidence = method === 'confidence';
+  $('buffer-percent-fields').hidden = confidence;
+  $('buffer-confidence-fields').hidden = !confidence;
+  rulesForm.elements.pathPercent.disabled = confidence;
+  rulesForm.elements.sdPercent.disabled = !confidence;
+  rulesForm.elements.z.disabled = !confidence;
+}
+$('buffer-method').onchange = event => showSizingFields(event.target.value);
+rulesForm.elements.leadDays.oninput = event => event.target.setCustomValidity('');
+rulesForm.onsubmit = event => {
+  event.preventDefault();
+  const fields = rulesForm.elements;
+  const leads = fields.leadDays.value.split(',').map(part => Number(part.trim()));
+  if (leads.some(lead => !Number.isFinite(lead) || lead <= 0)) {
+    fields.leadDays.setCustomValidity('Enter positive lead times separated by commas.');
+    fields.leadDays.reportValidity();
+    return;
+  }
+  bufferRules = {
+    method: fields.method.value, pathPercent: fields.pathPercent.valueAsNumber,
+    sdPercent: fields.sdPercent.valueAsNumber, z: fields.z.valueAsNumber,
+    leadDays: [...new Set(leads)].sort((a,b) => b - a)
+  };
+  drawBuffers();
+};
+rulesForm.onreset = () => {
+  rulesForm.elements.leadDays.setCustomValidity('');
+  showSizingFields(defaultBufferRules.method);
+  bufferRules = defaultBufferRules;
+  drawBuffers();
+};
 
 function renderResults() {
   $('analyze').disabled = !project.tasks.length || Boolean(worker);

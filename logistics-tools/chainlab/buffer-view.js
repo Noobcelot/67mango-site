@@ -1,4 +1,4 @@
-import {completeSchedule} from './buffers.js';
+import {completeSchedule, defaultBufferRules} from './buffers.js?v=buffer-rules';
 import {days} from './engine.js';
 
 const number = value => days(value).toLocaleString(undefined, {maximumFractionDigits: 4});
@@ -25,13 +25,19 @@ function chartLayout(work, feeding, projectBuffer, graph, chain) {
       [taskLanes[task], ...feeders, ...upstream]);
   }
   for (const feeder of feeding) place({...feeder, type:'FB'}, [taskLanes[feeder.from], taskLanes[feeder.to]]);
-  place({...projectBuffer, type:'PB'}, [taskLanes[chain.at(-1)]]);
+  if (projectBuffer.duration > 0) place({...projectBuffer, type:'PB'}, [taskLanes[chain.at(-1)]]);
   return {lanes, taskLanes};
 }
 
-export function renderBufferView(project, graph, plan, chain) {
-  const {work, feeding, project: projectBuffer, resource, chainLength} = completeSchedule(graph, plan, chain);
-  const {lanes, taskLanes} = chartLayout(work, feeding, projectBuffer, graph, chain);
+export function renderBufferView(project, graph, plan, chain, rules = defaultBufferRules) {
+  const {work, feeding, project: projectBuffer, resource, chainLength} = completeSchedule(graph, plan, chain, rules);
+  const visibleFeeding = feeding.filter(item => item.duration > 0);
+  const {lanes, taskLanes} = chartLayout(work, visibleFeeding, projectBuffer, graph, chain);
+  const format = value => value.toLocaleString(undefined, {maximumFractionDigits: 4});
+  const sizing = (length, sigma) => sigma === undefined
+    ? `${format(rules.pathPercent)}% × ${number(length)} d`
+    : `Z ${format(rules.z)} × path SD ${number(sigma)} d`;
+  const leadLabel = rules.leadDays.map(format).join(', ');
   const critical = new Set(chain);
   const taskName = task => escape(project.tasks[task].id);
   const department = task => project.departments.find(item => item.id === project.tasks[task].department);
@@ -61,10 +67,10 @@ export function renderBufferView(project, graph, plan, chain) {
       return `<div class="complete-bar ${isTask ? 'work-bar' : 'allowance-bar'} ${critical.has(block.task) ? 'on-chain' : ''}" style="${style}${color}" title="${description} · ${duration} days · project day ${number(block.start)} to ${number(block.end)}"><strong>${label}</strong><span>${duration} d</span></div>`;
     }).join('');
     const flags = resource.filter(item => taskLanes[item.task] === laneIndex).map(({task, at}) =>
-      `<span class="resource-flag" style="left:${position(at)}%;--dept:${department(task).color}" title="Resource buffer for ${taskName(task)} · alert at 7, 3, and 1 days before start">RB</span>`).join('');
+      `<span class="resource-flag" style="left:${position(at)}%;--dept:${department(task).color}" title="Resource buffer for ${taskName(task)} · lead times in days: ${leadLabel}">RB</span>`).join('');
     return `<div class="complete-lane">${bars}${flags}</div>`;
   }).join('');
-  const feederLinks = new Set(feeding.map(({from, to}) => `${from}:${to}`));
+  const feederLinks = new Set(visibleFeeding.map(({from, to}) => `${from}:${to}`));
   const connection = (from, to, style = '') => {
     if (taskLanes[from] === taskLanes[to]) return '';
     const x1 = position(work.lateEnd[from]) * 10;
@@ -82,8 +88,8 @@ export function renderBufferView(project, graph, plan, chain) {
   }).join('');
   const extension = work.finish - plan.finish;
   const stat = (name, value) => `<div><span>${name}</span><strong>${number(value)} <small>d</small></strong></div>`;
-  const rowsHtml = feeding.map(({from, to, length, duration}) =>
-    `<tr><td><span class="buffer-key">FB</span></td><td>${taskName(from)} → ${taskName(to)}</td><td>${number(duration)} d</td><td>50% of the ${number(length)}-day precedence branch</td></tr>`).join('');
+  const rowsHtml = feeding.map(({from, to, path, length, duration, sigma}) =>
+    `<tr><td><span class="buffer-key">FB</span></td><td>${taskName(from)} → ${taskName(to)}</td><td>${number(duration)} d</td><td>${path.map(taskName).join(' → ')} · ${sizing(length, sigma)}</td></tr>`).join('');
   const reminders = resource.map(({task, at, leadDays}) => {
     const when = leadDays.map(lead => {
       const day = days(at) - lead;
@@ -101,8 +107,8 @@ export function renderBufferView(project, graph, plan, chain) {
     </div></div>
     <div class="buffer-caption"><span><i class="buffer-key">FB</i> Feeding buffer</span><span><i class="buffer-key">PB</i> Project buffer</span><span><i class="buffer-key rb-key">RB</i> Resource alert</span><span><i class="chain-key"></i> Selected chain</span><span><i class="resource-link-key"></i> Resource handoff</span></div>
     <div class="buffer-detail">
-      <p class="result-note">${extension > 0 ? `Feeding protection moves the work finish by ${number(extension)} days for this resource order. ` : ''}Finish values above count from the first scheduled activity. RBs are readiness reminders 7, 3, and 1 days before the marked task.</p>
+      <p class="result-note">${extension > 0 ? `Feeding protection moves the work finish by ${number(extension)} days for this resource order. ` : ''}Finish values above count from the first scheduled activity. Resource alert lead times (days before the marked task) are ${leadLabel}. ${rules.method === 'confidence' ? `Path SD combines independent activity variances. Each activity SD is ${format(rules.sdPercent)}% of its duration.` : ''}</p>
       <div class="scroll"><table class="buffer-table"><thead><tr><th>Type</th><th>Placement</th><th>Duration</th><th>Sizing or reminder days</th></tr></thead>
-      <tbody>${rowsHtml}<tr><td><span class="buffer-key">PB</span></td><td>After all scheduled work</td><td>${number(projectBuffer.duration)} d</td><td>50% of the ${number(chainLength)}-day selected chain</td></tr>${reminders}</tbody></table></div>
+      <tbody>${rowsHtml}<tr><td><span class="buffer-key">PB</span></td><td>After all scheduled work</td><td>${number(projectBuffer.duration)} d</td><td>${sizing(chainLength, projectBuffer.sigma)}</td></tr>${reminders}</tbody></table></div>
     </div>`;
 }

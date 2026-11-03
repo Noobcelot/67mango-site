@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Build a project network, schedule shared departments, and find critical paths and chains.">
 <title>ChainLab Project Planner</title>
-<link rel="stylesheet" href="./style.css">
-<script type="module" src="./app.js"></script>
+<link rel="stylesheet" href="./style.css?v=buffer-rules">
+<script type="module" src="./app.js?v=buffer-rules"></script>
 </head>
 <body>
 <header class="mast">
@@ -69,7 +69,35 @@
           <div class="actions buffer-actions"><label for="buffer-chain">Protect sequence</label><select id="buffer-chain"></select><button id="close-buffers" class="quiet" aria-label="Close complete schedule">✕</button></div>
         </div>
         <p id="buffer-chain-limit" class="muted" hidden>Showing the first 200 tied sequences for this resource order.</p>
-        <div id="buffer-body"></div>
+        <details class="buffer-rules">
+          <summary>Buffer rules</summary>
+          <form id="buffer-rules-form">
+            <label>Sizing method
+              <select name="method" id="buffer-method">
+                <option value="percent">Percentage of path duration</option>
+                <option value="confidence">Confidence buffer (Z × path SD)</option>
+              </select>
+            </label>
+            <label id="buffer-percent-fields">Path duration (%)
+              <input name="pathPercent" type="number" min="0" max="1000" step="any" value="50" required>
+            </label>
+            <div id="buffer-confidence-fields" hidden>
+              <label>Activity SD (% of duration)
+                <input name="sdPercent" type="number" min="0" max="1000" step="any" value="50" required disabled>
+              </label>
+              <label>Z multiplier
+                <input name="z" type="number" min="0" max="10" step="any" value="1.64485362695147" required disabled>
+              </label>
+            </div>
+            <label>Resource lead days
+              <input name="leadDays" type="text" value="7, 3, 1" required>
+            </label>
+            <button type="submit" class="primary">Apply rules</button>
+            <button type="reset">Restore defaults</button>
+          </form>
+          <p class="muted">Enter one lead day (such as 5) or a comma-separated list. For confidence sizing, activity durations are treated as means and activity times are assumed independent. Feeding buffers use the upstream precedence path with the highest variance. The default Z is for one-sided 95% confidence.</p>
+        </details>
+        <div id="buffer-body" aria-live="polite"></div>
       </section>
     </div>
   </div>
