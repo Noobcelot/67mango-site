@@ -16,7 +16,6 @@
   <div class="spacer"></div>
   <button id="new-project" class="quiet">New project</button>
   <button id="load-example" class="quiet" title="Reload the RGBM example from slide 9">Load default example</button>
-  <button id="load-practice">Load Practice Problem 1</button>
   <button id="import" class="quiet">Import</button>
   <button id="export">Export JSON</button>
   <input id="file" type="file" accept=".json,application/json" hidden>
@@ -53,8 +52,7 @@
       <section class="panel">
         <div class="panel-title gantt-title"><div><div class="step">03 / TIMELINE</div><h2>Gantt chart</h2></div>
           <div class="actions">
-            <select id="gantt-mode" aria-label="Gantt view"><option value="level">Resource-leveled</option><option value="baseline">Precedence only · Late start</option><option value="early">Precedence only · Early start</option></select>
-            <button id="open-study" aria-controls="schedule-study" aria-expanded="false">Resource orders</button>
+            <select id="gantt-mode" aria-label="Gantt view"><option value="level">Resource-leveled</option><option value="baseline">Precedence only</option></select>
             <button id="open-buffers" aria-controls="complete-schedule" aria-expanded="false">Complete schedule</button>
             <button id="analyze" class="primary">Find CP &amp; CC</button>
           </div>
@@ -65,11 +63,6 @@
       <section class="panel" id="results" aria-labelledby="results-heading">
         <div class="panel-title"><div><div class="step">04 / ANALYSIS</div><h2 id="results-heading">Critical sequences</h2></div><select id="filter" aria-label="Filter critical sequences" hidden><option value="all">All candidates</option><option value="CC">Critical chains</option><option value="CP">Critical paths</option></select></div>
         <div id="result-body" aria-live="polite" class="results"></div>
-      </section>
-      <section class="panel" id="schedule-study" aria-labelledby="study-heading" hidden>
-        <div class="panel-title"><div><div class="step">RESOURCE WORKBENCH</div><h2 id="study-heading">Resource orders and comparisons</h2></div><button id="close-study" aria-label="Close resource workbench">Close</button></div>
-        <div id="study-body" class="results"></div>
-        <p id="study-error" class="results" role="alert" hidden></p>
       </section>
       <section class="panel" id="complete-schedule" aria-labelledby="complete-heading" hidden>
         <div class="panel-title"><div><div class="step">05 / BUFFERS</div><h2 id="complete-heading">The Complete Schedule</h2></div>

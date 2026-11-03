@@ -1,8 +1,6 @@
 import {analyze, analyzeSchedule, criticalSequences, days, initialSchedule, projectGraph, schedule} from './engine.js';
 import {renderBufferView} from './buffer-view.js';
-import {completeSchedule} from './buffers.js';
-import {bufferImpact, resourceConflicts, resourceGroups, swapResourceTasks} from './study.js';
-import {exampleProject, practiceProject} from './example.js';
+import {exampleProject} from './example.js';
 
 const $ = id => document.getElementById(id);
 const storageKey = 'chainlab-project-v1';
@@ -15,7 +13,7 @@ let project = readProject();
 let graph, baseline, methodPlan, leveled, displayed, analysis, selected, worker, editing;
 let visibleResults = 12;
 let bufferChoices = [];
-let bufferPlan, comparison;
+let bufferPlan;
 
 function readProject() {
   try {
@@ -52,8 +50,6 @@ function replaceProject(next) {
   graph = validated;
   baseline = schedule(graph);
   bufferPlan = null;
-  comparison = null;
-  $('study-error').hidden = true;
   methodPlan = initialSchedule(graph);
   leveled = methodPlan;
   $('project-name').value = project.name;
@@ -166,21 +162,16 @@ function renderFlow() {
 }
 
 function renderSchedule() {
-  const mode = $('gantt-mode').value;
-  const baselineMode = mode !== 'level';
-  const early = mode === 'early';
+  const baselineMode = $('gantt-mode').value === 'baseline';
   displayed = baselineMode ? baseline : leveled;
   const extra = displayed.finish - baseline.finish;
   const metric = (label, value, unit = 'd') => `<div class="metric"><label>${label}</label><strong>${number(value)} <span>${unit}</span></strong></div>`;
   $('metrics').innerHTML = metric('BASELINE', baseline.finish)
     + metric('CURRENT GANTT', displayed.finish) + metric('RESOURCE DELAY', extra);
-  $('gantt-label').textContent = baselineMode ? (early ? 'EARLY START · PRECEDENCE ONLY' : 'LATE START · PRECEDENCE ONLY')
+  $('gantt-label').textContent = baselineMode ? 'LATE START · PRECEDENCE ONLY'
     : leveled === methodPlan ? 'LATE START · SLIDE METHOD' : 'LATE START · ALTERNATIVE ORDER';
   renderFlow();
   $('open-buffers').disabled = !project.tasks.length;
-  $('open-study').disabled = !project.tasks.length;
-  if (!project.tasks.length) closeStudy();
-  else if (!$('schedule-study').hidden) renderStudy();
   if (!project.tasks.length) closeBuffers();
   else if (!$('complete-schedule').hidden) refreshBuffers();
   if (!project.tasks.length) {
@@ -200,8 +191,7 @@ function renderSchedule() {
   const grid = positions('gridline', false);
   const rows = project.tasks.map((task, index) => {
     const dept = departmentFor(task);
-    const start = early ? displayed.start[index] : displayed.lateStart[index];
-    const end = early ? displayed.end[index] : displayed.lateEnd[index];
+    const start = displayed.lateStart[index], end = displayed.lateEnd[index];
     const detail = `${task.id} · ${dept.name} · Day ${number(start)} to ${number(end)}`;
     return `<div class="time-row"><div class="time-label" title="${escape(detail)}">${dot(dept)}<strong>${escape(task.id)}</strong><small>${number(start)}–${number(end)}</small></div>
       <div class="time-axis">${grid}<div class="bar ${selected?.path.includes(index) ? 'active' : ''}" style="--dept:${dept.color};left:${percent(start)}%;width:${percent(end - start)}%" title="${escape(detail)}"><span>${task.duration}d</span></div></div></div>`;
@@ -209,110 +199,9 @@ function renderSchedule() {
   $('gantt').innerHTML = `<div class="timeline">${axis}${rows}</div>`;
 }
 
-const studyTask = index => escape(project.tasks[index].id);
-const studyPath = path => path.map(studyTask).join(' → ');
-
-function studyScenario() {
-  const chain = bufferPlan === leveled ? bufferChoices[Number($('buffer-chain').value)]
-    : selected?.type === 'CC' ? selected : criticalSequences(leveled).next().value;
-  const buffered = completeSchedule(graph, leveled, chain.path);
-  return {plan:leveled, chain:chain.path, work:buffered.work.finish, pb:buffered.project.duration,
-    finish:buffered.project.end, rounded:bufferImpact(graph, leveled, chain.path, buffered).roundedFinish};
-}
-
-function renderStudy() {
-  const active = studyScenario();
-  const groupRows = [...resourceGroups(graph, leveled)].map(([key,tasks]) => {
-    const name = escape(project.departments.find(item => item.id === key).name);
-    const swaps = tasks.slice(1).map((to,i) =>
-      `<button class="small" data-swap="${tasks[i]}:${to}">Swap ${studyTask(tasks[i])} / ${studyTask(to)}</button>`).join(' ');
-    return `<tr><td>${name}</td><td>${studyPath(tasks)}</td><td>${swaps || '—'}</td></tr>`;
-  }).join('');
-  const early = $('gantt-mode').value === 'early';
-  const conflicts = resourceConflicts(graph, baseline, early).map(({a,b,overlap,shiftA,shiftB,upstreamA,upstreamB}) =>
-    `<tr><td>${studyTask(a)} / ${studyTask(b)}</td><td>${number(overlap)} d</td><td>${studyTask(a)} ${number(shiftA)} d / ${studyTask(b)} ${number(shiftB)} d</td><td>${studyTask(a)} ${number(upstreamA)} d (${number(upstreamA + graph.duration[a])} d) / ${studyTask(b)} ${number(upstreamB)} d (${number(upstreamB + graph.duration[b])} d)</td></tr>`).join('');
-  const compareRow = (label,s) => `<tr><td>${label}</td><td>${studyPath(s.chain)}</td><td>${number(s.plan.finish)} d</td><td>${number(s.work)} d</td><td>${number(s.pb)} d</td><td>${number(s.finish)} d</td><td>${number(s.rounded)} d</td></tr>`;
-  const otherOrders = comparison ? [...resourceGroups(graph,comparison.plan)].flatMap(([key,tasks]) => {
-    const current = resourceGroups(graph,leveled).get(key);
-    if (tasks.join(',') === current.join(',')) return [];
-    const name = escape(project.departments.find(item => item.id === key).name);
-    return [`<tr><td>${name}</td><td>${studyPath(tasks)}</td><td>${studyPath(current)}</td></tr>`];
-  }).join('') : '';
-  const isPractice = JSON.stringify(project.tasks) === JSON.stringify(practiceProject().tasks);
-  $('study-body').innerHTML = `<p class="result-note">Swap neighboring activities to change just one resource’s order. The existing scheduler recalculates the Gantt and critical sequences.</p>
-    <p><button id="pin-study">${comparison ? 'Replace comparison snapshot' : 'Save current for comparison'}</button>
-    <button id="reset-study">Restore slide method</button>
-    ${isPractice ? '<button id="alternate-practice">Load slide 49 chain scenario</button>' : ''}</p>
-    <div class="scroll"><table class="buffer-table"><thead><tr><th>Resource</th><th>Current order</th><th>Try a swap</th></tr></thead><tbody>${groupRows}</tbody></table></div>
-    <details class="study-details" open><summary>Compare schedules</summary>
-      <div class="scroll"><table class="buffer-table"><thead><tr><th>Scenario</th><th>Protected sequence</th><th>Unbuffered finish</th><th>Work finish with FBs</th><th>PB</th><th>Protected finish</th><th>Rounded protected finish</th></tr></thead><tbody>${comparison ? compareRow('Saved',comparison) : ''}${compareRow('Current',active)}</tbody></table></div>
-      ${otherOrders ? `<div class="scroll"><table class="buffer-table"><thead><tr><th>Changed resource</th><th>Saved order</th><th>Current order</th></tr></thead><tbody>${otherOrders}</tbody></table></div>` : ''}
-    </details>
-    <details class="study-details"><summary>Precedence-only conflicts · ${early ? 'early' : 'late'} start</summary>
-      <p class="result-note">Each shift clears that pair on the precedence-only chart. Upstream times exclude the activity itself, with the inclusive totals in parentheses. Other conflicts can change the final result.</p>
-      ${conflicts ? `<div class="scroll"><table class="buffer-table"><thead><tr><th>Activities</th><th>Overlap</th><th>Shift earlier if first</th><th>Longest upstream path</th></tr></thead><tbody>${conflicts}</tbody></table></div>` : '<p>No same-resource overlaps.</p>'}
-    </details>`;
-}
-
-function closeStudy() {
-  $('schedule-study').hidden = true;
-  $('open-study').setAttribute('aria-expanded', 'false');
-}
-
-$('open-study').onclick = () => {
-  $('schedule-study').hidden = false;
-  $('open-study').setAttribute('aria-expanded', 'true');
-  renderStudy();
-  $('schedule-study').scrollIntoView({block:'start',behavior:'smooth'});
-};
-$('close-study').onclick = () => {
-  closeStudy();
-  $('open-study').focus();
-};
-$('study-body').onclick = event => {
-  const button = event.target.closest('button');
-  if (!button) return;
-  $('study-error').hidden = true;
-  if (button.id === 'pin-study') {
-    comparison = studyScenario();
-    renderStudy();
-    return;
-  }
-  try {
-    let chosen = null;
-    if (button.id === 'reset-study') leveled = methodPlan;
-    else if (button.id === 'alternate-practice') {
-      const orders = ['A-1 B-2 A-5 C-6','B-3 C-3 D-3','B-4 A-4 A-6 C-5','A-3 C-4 D-4'];
-      const ids = new Map(project.tasks.map((task,index) => [task.id,index]));
-      const links = orders.flatMap(order => {
-        const tasks = order.split(' ').map(id => ids.get(id));
-        return tasks.slice(1).map((task,i) => [tasks[i],task]);
-      });
-      const alternate = schedule(graph, links);
-      const expected = 'A-1 A-2 A-3 A-4 A-5 A-6 C-5 C-6';
-      chosen = [...criticalSequences(alternate)].find(choice =>
-        choice.path.map(task => project.tasks[task].id).join(' ') === expected);
-      leveled = alternate;
-    } else if (button.dataset.swap) {
-      leveled = swapResourceTasks(graph, leveled, ...button.dataset.swap.split(':').map(Number));
-    } else return;
-    worker?.terminate();
-    worker = null;
-    selected = chosen;
-    analysis = null;
-    $('gantt-mode').value = 'level';
-    renderSchedule();
-    renderResults();
-  } catch (error) {
-    $('study-error').textContent = error.message;
-    $('study-error').hidden = false;
-  }
-};
-
 function drawBuffers() {
   const choice = bufferChoices[Number($('buffer-chain').value)];
   $('buffer-body').innerHTML = renderBufferView(project, graph, leveled, choice.path);
-  if (!$('schedule-study').hidden) renderStudy();
 }
 
 function refreshBuffers() {
@@ -399,7 +288,7 @@ function renderResults() {
 }
 
 function analyzeCurrent() {
-  const baselineOnly = $('gantt-mode').value !== 'level';
+  const baselineOnly = $('gantt-mode').value === 'baseline';
   selected = null;
   visibleResults = 12;
   $('filter').value = 'all';
@@ -572,10 +461,6 @@ $('new-project').onclick = () => {
 $('load-example').onclick = () => {
   if (confirm('Load the RGBM example from slide 9 and replace the current project?'))
     replaceProject(exampleProject());
-};
-$('load-practice').onclick = () => {
-  if (confirm('Load CCM2 Practice Problem 1 and replace the current project?'))
-    replaceProject(practiceProject());
 };
 $('import').onclick = () => $('file').click();
 $('file').onchange = async event => {
