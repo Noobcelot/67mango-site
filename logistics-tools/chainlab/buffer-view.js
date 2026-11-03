@@ -1,4 +1,5 @@
 import {completeSchedule} from './buffers.js';
+import {bufferImpact} from './study.js';
 import {days} from './engine.js';
 
 const number = value => days(value).toLocaleString(undefined, {maximumFractionDigits: 4});
@@ -82,8 +83,9 @@ export function renderBufferView(project, graph, plan, chain) {
   }).join('');
   const extension = work.finish - plan.finish;
   const stat = (name, value) => `<div><span>${name}</span><strong>${number(value)} <small>d</small></strong></div>`;
-  const rowsHtml = feeding.map(({from, to, length, duration}) =>
-    `<tr><td><span class="buffer-key">FB</span></td><td>${taskName(from)} → ${taskName(to)}</td><td>${number(duration)} d</td><td>50% of the ${number(length)}-day precedence branch</td></tr>`).join('');
+  const impact = bufferImpact(graph, plan, chain, {work, feeding, project:projectBuffer});
+  const rowsHtml = impact.feeding.map(({from, to, length, duration, path}) =>
+    `<tr><td><span class="buffer-key">FB</span></td><td>${taskName(from)} → ${taskName(to)}</td><td>${number(duration)} d</td><td>${path.map(taskName).join(' → ')} · 50% of ${number(length)} d</td></tr>`).join('');
   const reminders = resource.map(({task, at, leadDays}) => {
     const when = leadDays.map(lead => {
       const day = days(at) - lead;
@@ -93,6 +95,9 @@ export function renderBufferView(project, graph, plan, chain) {
     return `<tr><td><span class="buffer-key rb-key">RB</span></td><td>${taskName(task)} · ${escape(department(task).name)}</td><td>0 d</td><td>${when}</td></tr>`;
   }).join('');
 
+  const gaps = impact.gaps.map(({from,to,gap}) => `${taskName(from)} → ${taskName(to)} (${number(gap)} d)`).join(', ');
+  const changes = impact.shifts.map(({task,before,after,earlier}) =>
+    `<tr><td>${taskName(task)}</td><td>${number(before)}</td><td>${number(after)}</td><td>${number(earlier)} d</td></tr>`).join('');
   return `<div class="buffer-stats">${stat('WORK FINISH', work.finish)}${stat('PROJECT BUFFER', projectBuffer.duration)}${stat('PROTECTED FINISH', projectBuffer.end)}</div>
     <div class="gantt-status"><span>BUFFERED LATE START</span><span>DAYS REMAINING TO PROTECTED FINISH</span></div>
     <div class="scroll"><div class="complete-chart">
@@ -104,5 +109,11 @@ export function renderBufferView(project, graph, plan, chain) {
       <p class="result-note">${extension > 0 ? `Feeding protection moves the work finish by ${number(extension)} days for this resource order. ` : ''}Finish values above count from the first scheduled activity. RBs are readiness reminders 7, 3, and 1 days before the marked task.</p>
       <div class="scroll"><table class="buffer-table"><thead><tr><th>Type</th><th>Placement</th><th>Duration</th><th>Sizing or reminder days</th></tr></thead>
       <tbody>${rowsHtml}<tr><td><span class="buffer-key">PB</span></td><td>After all scheduled work</td><td>${number(projectBuffer.duration)} d</td><td>50% of the ${number(chainLength)}-day selected chain</td></tr>${reminders}</tbody></table></div>
+      <details class="study-details" open>
+        <summary>Buffer impact</summary>
+        <p>Work finish ${number(plan.finish)} → ${number(work.finish)} d · Chain gaps ${gaps || 'none'}</p>
+        <p>Round each FB and PB up to a whole day to get a ${number(impact.roundedFinish)}-day protected finish (${number(impact.roundedWork)} d work + ${number(impact.roundedProject)} d PB).</p>
+        ${changes ? `<div class="scroll"><table class="buffer-table"><thead><tr><th>Activity</th><th>Start before (day)</th><th>Start after (day)</th><th>Moved earlier relative to work finish</th></tr></thead><tbody>${changes}</tbody></table></div>` : '<p>No starts moved relative to the work finish.</p>'}
+      </details>
     </div>`;
 }

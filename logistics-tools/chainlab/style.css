@@ -199,3 +199,8 @@ footer .mango-badge {
   .intro { padding-top: 8px; }
   .metric { min-width: 0; }
 }
+
+.study-details { margin-top: 12px; }
+.study-details summary { cursor: pointer; font-size: 13px; font-weight: bold; padding: 5px 0; }
+.study-details .buffer-table { margin: 6px 0; }
+#study-error { color: #a62938; }
