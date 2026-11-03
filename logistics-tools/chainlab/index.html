@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build a project network, schedule shared departments, and find critical paths and chains.">
+<title>ChainLab Project Planner</title>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.js"></script>
+</head>
+<body>
+<header class="mast">
+  <div class="mango-masthead">67mango.com</div>
+  <a class="brand" href="./">ChainLab</a>
+  <span class="divider"></span><span class="subtitle">:: PROJECT PLANNER ::</span>
+  <div class="spacer"></div>
+  <button id="new-project" class="quiet">New project</button>
+  <button id="load-example" class="quiet" title="Reload the RGBM example from slide 9">Load default example</button>
+  <button id="import" class="quiet">Import</button>
+  <button id="export">Export JSON</button>
+  <input id="file" type="file" accept=".json,application/json" hidden>
+</header>
+<main>
+  <section class="intro">
+    <div>
+      <input id="project-name" aria-label="Project name" class="project-name" maxlength="100">
+      <p>Map dependencies, level shared resources, and see what drives the finish date.</p>
+    </div>
+    <div class="metrics" id="metrics"></div>
+  </section>
+  <div id="notice" role="status" hidden></div>
+  <div class="workspace">
+    <aside class="panel editor">
+      <div class="side-title"><div class="step">01 / INPUTS</div><h2>Project builder</h2></div>
+      <div class="editor-section">
+        <div class="section-row"><h3>Departments</h3><button id="add-department" class="small">+ Add</button></div>
+        <p class="muted">Each department runs one activity at a time.</p>
+        <div id="departments"></div>
+      </div>
+      <div class="editor-section">
+        <div class="section-row"><h3>Activities <span id="count" class="badge"></span></h3><button id="add-task" class="small">+ Add</button></div>
+        <p class="muted">Select an activity to edit its time or predecessors.</p>
+        <div id="tasks"></div>
+      </div>
+    </aside>
+    <div class="main-column">
+      <section class="panel">
+        <div class="panel-title"><div><div class="step">02 / NETWORK</div><h2>Project flowchart</h2></div><span class="legend-arrow">⟶ Finish to start</span></div>
+        <div id="flow" class="scroll flow"></div>
+        <div id="legend" class="legend"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-title gantt-title"><div><div class="step">03 / TIMELINE</div><h2>Gantt chart</h2></div>
+          <div class="actions">
+            <select id="gantt-mode" aria-label="Gantt view"><option value="level">Resource-leveled</option><option value="baseline">Precedence only</option></select>
+            <button id="open-buffers" aria-controls="complete-schedule" aria-expanded="false">Complete schedule</button>
+            <button id="analyze" class="primary">Find CP &amp; CC</button>
+          </div>
+        </div>
+        <div class="gantt-status"><span id="gantt-label"></span><span>PROJECT DAYS</span></div>
+        <div id="gantt" class="scroll"></div>
+      </section>
+      <section class="panel" id="results" aria-labelledby="results-heading">
+        <div class="panel-title"><div><div class="step">04 / ANALYSIS</div><h2 id="results-heading">Critical sequences</h2></div><select id="filter" aria-label="Filter critical sequences" hidden><option value="all">All candidates</option><option value="CC">Critical chains</option><option value="CP">Critical paths</option></select></div>
+        <div id="result-body" aria-live="polite" class="results"></div>
+      </section>
+      <section class="panel" id="complete-schedule" aria-labelledby="complete-heading" hidden>
+        <div class="panel-title"><div><div class="step">05 / BUFFERS</div><h2 id="complete-heading">The Complete Schedule</h2></div>
+          <div class="actions buffer-actions"><label for="buffer-chain">Protect sequence</label><select id="buffer-chain"></select><button id="close-buffers" class="quiet" aria-label="Close complete schedule">✕</button></div>
+        </div>
+        <p id="buffer-chain-limit" class="muted" hidden>Showing the first 200 tied sequences for this resource order.</p>
+        <div id="buffer-body"></div>
+      </section>
+    </div>
+  </div>
+</main>
+<dialog id="editor-dialog">
+  <form id="editor-form">
+    <div class="dialog-head"><h2 id="dialog-title"></h2><button type="button" id="close-dialog" class="quiet" aria-label="Close dialog">✕</button></div>
+    <div id="fields"></div>
+    <p id="form-error" role="alert" hidden></p>
+    <div class="dialog-actions"><button type="button" id="delete-item" class="danger">Delete</button><div class="spacer"></div><button type="button" id="cancel-dialog">Cancel</button><button type="submit" class="primary">Save</button></div>
+  </form>
+</dialog>
+</body>
+</html>
